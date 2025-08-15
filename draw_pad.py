@@ -12,7 +12,12 @@ class PaintApp:
         # 默认画笔颜色和大小
         self.pen_color = "black"
         self.eraser_color = "white"
-        self.pen_size = 5
+        self.pen_size = 1  # 修改默认值为1，表示1个像素单位
+        # 像素网格设置
+        self.pixel_grid_enabled = False
+        self.pixel_size = 10  # 每个像素方格的大小
+        self.grid_lines = []
+        
         # 创建主框架
         main_frame = Frame(self.root, bg="white")
         main_frame.pack(fill=BOTH, expand=True, padx=10, pady=10)
@@ -26,10 +31,12 @@ class PaintApp:
         Button(button_frame, text="橡皮擦", command=self.use_eraser).pack(side=LEFT, padx=10)
         Button(button_frame, text="清屏", command=self.clear_canvas).pack(side=LEFT, padx=10)
         Button(button_frame, text="保存", command=self.save_canvas).pack(side=LEFT, padx=10)
+        # 像素网格控制按钮
+        Button(button_frame, text="显示/隐藏像素网格", command=self.toggle_pixel_grid).pack(side=LEFT, padx=10)
 
-        # 笔墨粗细滑块
+        # 笔墨粗细滑块 (修改范围以适配像素网格)
         Label(button_frame, text="笔墨粗细:").pack(side=LEFT, padx=10)
-        self.size_scale = Scale(button_frame, from_=1, to=20, orient=HORIZONTAL, command=self.change_pen_size)
+        self.size_scale = Scale(button_frame, from_=1, to=5, orient=HORIZONTAL, command=self.change_pen_size)
         self.size_scale.set(self.pen_size)
         self.size_scale.pack(side=LEFT, padx=10)
         
@@ -38,20 +45,76 @@ class PaintApp:
         self.canvas.pack(fill=BOTH, expand=True)
         
         self.canvas.bind("<B1-Motion>", self.paint)
+        self.canvas.bind("<Button-1>", self.paint_dot)
+        self.canvas.bind("<Configure>", self.on_canvas_resize)
+        
     def paint(self, event):
-        x1, y1 = (event.x - self.pen_size), (event.y - self.pen_size)
-        x2, y2 = (event.x + self.pen_size), (event.y + self.pen_size)
-        self.canvas.create_oval(x1, y1, x2, y2, fill=self.pen_color, outline=self.pen_color)
+        # 计算像素网格中的位置
+        center_x = event.x // self.pixel_size
+        center_y = event.y // self.pixel_size
+        
+        # 根据笔墨粗细绘制多个像素
+        radius = self.pen_size // 2
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                x = center_x + dx
+                y = center_y + dy
+                
+                # 检查边界
+                if x >= 0 and y >= 0:
+                    # 计算屏幕坐标
+                    screen_x = x * self.pixel_size
+                    screen_y = y * self.pixel_size
+                    
+                    # 在像素网格位置绘制方块
+                    self.canvas.create_rectangle(
+                        screen_x, screen_y, 
+                        screen_x + self.pixel_size, screen_y + self.pixel_size,
+                        fill=self.pen_color, outline=self.pen_color, tags="pixel"
+                    )
+        
+    def paint_dot(self, event):
+        # 单击时也绘制
+        center_x = event.x // self.pixel_size
+        center_y = event.y // self.pixel_size
+        
+        # 根据笔墨粗细绘制多个像素
+        radius = self.pen_size // 2
+        for dy in range(-radius, radius + 1):
+            for dx in range(-radius, radius + 1):
+                x = center_x + dx
+                y = center_y + dy
+                
+                # 检查边界
+                if x >= 0 and y >= 0:
+                    # 计算屏幕坐标
+                    screen_x = x * self.pixel_size
+                    screen_y = y * self.pixel_size
+                    
+                    # 在像素网格位置绘制方块
+                    self.canvas.create_rectangle(
+                        screen_x, screen_y, 
+                        screen_x + self.pixel_size, screen_y + self.pixel_size,
+                        fill=self.pen_color, outline=self.pen_color, tags="pixel"
+                    )
+        
     def choose_color(self):
         color = askcolor()[1]
         if color:
             self.pen_color = color
+            
     def change_pen_size(self, val):
         self.pen_size = int(val)
+        
     def use_eraser(self):
         self.pen_color = self.eraser_color
+        
     def clear_canvas(self):
         self.canvas.delete("all")
+        # 重新绘制像素网格
+        if self.pixel_grid_enabled:
+            self.draw_pixel_grid()
+            
     def save_canvas(self):
         try:
             file_path = filedialog.asksaveasfilename(defaultextension=".png",
@@ -66,32 +129,77 @@ class PaintApp:
         except Exception as e:
             messagebox.showerror("错误", f"保存失败: {e}")
 
-    def get_pixel(self, x, y): # 拿到某个点的像素值
+    def on_canvas_resize(self, event):
+        # 当画布大小改变时重新绘制像素网格
+        if self.pixel_grid_enabled:
+            self.draw_pixel_grid()
+            
+    def toggle_pixel_grid(self):
+        self.pixel_grid_enabled = not self.pixel_grid_enabled
+        if self.pixel_grid_enabled:
+            self.draw_pixel_grid()
+        else:
+            self.clear_pixel_grid()
+            
+    def draw_pixel_grid(self):
+        # 清除现有的网格线
+        self.clear_pixel_grid()
+        
+        # 获取画布尺寸
+        width = self.canvas.winfo_width()
+        height = self.canvas.winfo_height()
+        
+        # 绘制垂直线
+        for x in range(0, width, self.pixel_size):
+            line = self.canvas.create_line(x, 0, x, height, fill="#e0e0e0", tags="pixel_grid")
+            self.grid_lines.append(line)
+            
+        # 绘制水平线
+        for y in range(0, height, self.pixel_size):
+            line = self.canvas.create_line(0, y, width, y, fill="#e0e0e0", tags="pixel_grid")
+            self.grid_lines.append(line)
+            
+        # 确保网格线在最底层，像素在最上层
+        for line in self.grid_lines:
+            self.canvas.tag_lower(line)
+        self.canvas.tag_raise("pixel")
+            
+    def clear_pixel_grid(self):
+        # 删除所有网格线
+        self.canvas.delete("pixel_grid")
+        self.grid_lines = []
+        
+    def get_pixel(self, x, y):
+        """
+        获取像素网格中指定位置的颜色值
+        x, y: 像素坐标（不是屏幕坐标）
+        返回: RGB颜色元组
+        """
+        # 将像素坐标转换为屏幕坐标（像素网格的左上角坐标）
+        screen_x = x * self.pixel_size
+        screen_y = y * self.pixel_size
+        
         # 查找在指定点上的所有项目
-        items = self.canvas.find_overlapping(x, y, x, y)
+        # 使用像素中心点来检测颜色
+        center_x = screen_x + self.pixel_size // 2
+        center_y = screen_y + self.pixel_size // 2
+        items = self.canvas.find_overlapping(center_x, center_y, center_x, center_y)
         
         color = None
         
         if items:
             # 从最上层项目开始查找有颜色的项目
             for item in reversed(items):
-                try:
-                    # 尝试获取项目的填充颜色
-                    fill_color = self.canvas.itemcget(item, "fill")
-                    if fill_color and fill_color != "":
-                        color = fill_color
-                        break
-                except:
-                    pass
-                
-                # 尝试获取轮廓颜色
-                try:
-                    outline_color = self.canvas.itemcget(item, "outline")
-                    if outline_color and outline_color != "":
-                        color = outline_color
-                        break
-                except:
-                    pass
+                # 检查是否是像素块（通过tag）
+                if "pixel" in self.canvas.gettags(item):
+                    try:
+                        # 获取项目的填充颜色
+                        fill_color = self.canvas.itemcget(item, "fill")
+                        if fill_color and fill_color != "":
+                            color = fill_color
+                            break
+                    except:
+                        pass
         
         # 如果没有找到任何颜色，使用画布背景色
         if not color:
@@ -129,22 +237,30 @@ class PaintApp:
             except ValueError:
                 pass
         
-        # 默认返回黑色
-        return (0, 0, 0)
+        # 默认返回白色（画布背景色）
+        return (255, 255, 255)
     
     def get_pixels(self):
-        # 获取画布的宽度和高度
-        width = self.canvas.winfo_width()
-        height = self.canvas.winfo_height()
+        """
+        获取整个像素网格的颜色数据
+        返回: 二维列表，每个元素是RGB颜色元组
+        """
+        # 获取画布的像素网格尺寸
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        
+        # 计算像素网格的尺寸
+        grid_width = canvas_width // self.pixel_size
+        grid_height = canvas_height // self.pixel_size
         
         # 创建二维列表存储像素值
         pixels = []
         
         # 遍历每个像素点
-        for y in range(height):
+        for y in range(grid_height):
             row = []
-            for x in range(width):
-                # 使用现有的get_pixel方法获取每个像素的颜色
+            for x in range(grid_width):
+                # 使用get_pixel方法获取每个像素的颜色
                 color = self.get_pixel(x, y)
                 row.append(color)
             pixels.append(row)
