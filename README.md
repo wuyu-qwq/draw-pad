@@ -55,3 +55,7 @@ app = PaintApp(root)
 ### get_pixels()
 
 获取画布上所有像素颜色
+
+### set_pixel((r,g,b), (x,y))
+
+设置画布上(x, y)点的像素颜色为(r, g, b)
