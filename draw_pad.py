@@ -267,6 +267,34 @@ class PaintApp:
         
         return pixels
 
+    def set_pixel(self, color, position):
+        """
+        设置像素网格中指定位置的颜色
+        
+        参数:
+        color: RGB元组，如 (255, 0, 0) 表示红色
+        position: 坐标元组，如 (x, y) 表示像素位置
+        """
+        # 解析颜色和位置参数
+        r, g, b = color
+        x, y = position
+        
+        # 将RGB转换为十六进制颜色值
+        hex_color = f"#{r:02x}{g:02x}{b:02x}"
+        
+        # 检查边界
+        if x >= 0 and y >= 0:
+            # 计算屏幕坐标
+            screen_x = x * self.pixel_size
+            screen_y = y * self.pixel_size
+            
+            # 在像素网格位置绘制方块
+            self.canvas.create_rectangle(
+                screen_x, screen_y, 
+                screen_x + self.pixel_size, screen_y + self.pixel_size,
+                fill=hex_color, outline=hex_color, tags="pixel"
+            )
+
 if __name__ == "__main__":
     root = Tk()
     app = PaintApp(root)
