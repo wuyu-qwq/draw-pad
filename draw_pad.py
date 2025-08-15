@@ -4,7 +4,7 @@ from tkinter import filedialog, messagebox
 import PIL.ImageGrab as ImageGrab
 
 class PaintApp:
-    def __init__(self, root):
+    def __init__(self, root, grid_width=64, grid_height=48):
         self.root = root
         self.root.title("Python画板")
         self.root.geometry("800x600")
@@ -15,8 +15,12 @@ class PaintApp:
         self.pen_size = 1  # 修改默认值为1，表示1个像素单位
         # 像素网格设置
         self.pixel_grid_enabled = False
+        self.grid_width = grid_width  # 固定网格宽度
+        self.grid_height = grid_height  # 固定网格高度
         self.pixel_size = 10  # 每个像素方格的大小
         self.grid_lines = []
+        # 橡皮擦模式
+        self.is_eraser_mode = False
         
         # 创建主框架
         main_frame = Frame(self.root, bg="white")
@@ -49,6 +53,13 @@ class PaintApp:
         self.canvas.bind("<Configure>", self.on_canvas_resize)
         
     def paint(self, event):
+        # 保存当前颜色
+        original_color = self.pen_color
+        
+        # 如果是橡皮擦模式，使用橡皮擦颜色
+        if self.is_eraser_mode:
+            self.pen_color = self.eraser_color
+        
         # 计算像素网格中的位置
         center_x = event.x // self.pixel_size
         center_y = event.y // self.pixel_size
@@ -61,19 +72,39 @@ class PaintApp:
                 y = center_y + dy
                 
                 # 检查边界
-                if x >= 0 and y >= 0:
+                if x >= 0 and y >= 0 and x < self.grid_width and y < self.grid_height:
                     # 计算屏幕坐标
                     screen_x = x * self.pixel_size
                     screen_y = y * self.pixel_size
                     
-                    # 在像素网格位置绘制方块
-                    self.canvas.create_rectangle(
-                        screen_x, screen_y, 
-                        screen_x + self.pixel_size, screen_y + self.pixel_size,
-                        fill=self.pen_color, outline=self.pen_color, tags="pixel"
-                    )
+                    # 删除该区域内的像素项
+                    if self.is_eraser_mode:
+                        # 查找并删除该区域内的像素项
+                        items = self.canvas.find_overlapping(screen_x, screen_y, 
+                                                            screen_x + self.pixel_size, 
+                                                            screen_y + self.pixel_size)
+                        for item in items:
+                            if "pixel" in self.canvas.gettags(item):
+                                self.canvas.delete(item)
+                    else:
+                        # 在像素网格位置绘制方块
+                        self.canvas.create_rectangle(
+                            screen_x, screen_y, 
+                            screen_x + self.pixel_size, screen_y + self.pixel_size,
+                            fill=self.pen_color, outline=self.pen_color, tags="pixel"
+                        )
+        
+        # 恢复原来的颜色
+        self.pen_color = original_color
         
     def paint_dot(self, event):
+        # 保存当前颜色
+        original_color = self.pen_color
+        
+        # 如果是橡皮擦模式，使用橡皮擦颜色
+        if self.is_eraser_mode:
+            self.pen_color = self.eraser_color
+        
         # 单击时也绘制
         center_x = event.x // self.pixel_size
         center_y = event.y // self.pixel_size
@@ -86,17 +117,30 @@ class PaintApp:
                 y = center_y + dy
                 
                 # 检查边界
-                if x >= 0 and y >= 0:
+                if x >= 0 and y >= 0 and x < self.grid_width and y < self.grid_height:
                     # 计算屏幕坐标
                     screen_x = x * self.pixel_size
                     screen_y = y * self.pixel_size
                     
-                    # 在像素网格位置绘制方块
-                    self.canvas.create_rectangle(
-                        screen_x, screen_y, 
-                        screen_x + self.pixel_size, screen_y + self.pixel_size,
-                        fill=self.pen_color, outline=self.pen_color, tags="pixel"
-                    )
+                    # 删除该区域内的像素项
+                    if self.is_eraser_mode:
+                        # 查找并删除该区域内的像素项
+                        items = self.canvas.find_overlapping(screen_x, screen_y, 
+                                                            screen_x + self.pixel_size, 
+                                                            screen_y + self.pixel_size)
+                        for item in items:
+                            if "pixel" in self.canvas.gettags(item):
+                                self.canvas.delete(item)
+                    else:
+                        # 在像素网格位置绘制方块
+                        self.canvas.create_rectangle(
+                            screen_x, screen_y, 
+                            screen_x + self.pixel_size, screen_y + self.pixel_size,
+                            fill=self.pen_color, outline=self.pen_color, tags="pixel"
+                        )
+        
+        # 恢复原来的颜色
+        self.pen_color = original_color
         
     def choose_color(self):
         color = askcolor()[1]
@@ -107,7 +151,11 @@ class PaintApp:
         self.pen_size = int(val)
         
     def use_eraser(self):
-        self.pen_color = self.eraser_color
+        self.is_eraser_mode = not self.is_eraser_mode
+        if self.is_eraser_mode:
+            print("切换到橡皮擦模式")
+        else:
+            print("切换到画笔模式")
         
     def clear_canvas(self):
         self.canvas.delete("all")
@@ -130,13 +178,28 @@ class PaintApp:
             messagebox.showerror("错误", f"保存失败: {e}")
 
     def on_canvas_resize(self, event):
-        # 当画布大小改变时重新绘制像素网格
+        # 当画布大小改变时重新计算像素大小并绘制像素网格
+        self.calculate_pixel_size()
         if self.pixel_grid_enabled:
             self.draw_pixel_grid()
+            
+    def calculate_pixel_size(self):
+        # 根据画布大小和网格数量计算每个像素的大小
+        canvas_width = self.canvas.winfo_width()
+        canvas_height = self.canvas.winfo_height()
+        
+        # 计算每个像素的大小，取较小值以确保整个网格都能显示
+        if self.grid_width > 0 and self.grid_height > 0:
+            pixel_width = canvas_width // self.grid_width
+            pixel_height = canvas_height // self.grid_height
+            self.pixel_size = min(pixel_width, pixel_height)
+            # 确保像素大小至少为1
+            self.pixel_size = max(1, self.pixel_size)
             
     def toggle_pixel_grid(self):
         self.pixel_grid_enabled = not self.pixel_grid_enabled
         if self.pixel_grid_enabled:
+            self.calculate_pixel_size()
             self.draw_pixel_grid()
         else:
             self.clear_pixel_grid()
@@ -145,17 +208,20 @@ class PaintApp:
         # 清除现有的网格线
         self.clear_pixel_grid()
         
+        # 重新计算像素大小
+        self.calculate_pixel_size()
+        
         # 获取画布尺寸
-        width = self.canvas.winfo_width()
-        height = self.canvas.winfo_height()
+        width = self.grid_width * self.pixel_size
+        height = self.grid_height * self.pixel_size
         
         # 绘制垂直线
-        for x in range(0, width, self.pixel_size):
+        for x in range(0, width + 1, self.pixel_size):
             line = self.canvas.create_line(x, 0, x, height, fill="#e0e0e0", tags="pixel_grid")
             self.grid_lines.append(line)
             
         # 绘制水平线
-        for y in range(0, height, self.pixel_size):
+        for y in range(0, height + 1, self.pixel_size):
             line = self.canvas.create_line(0, y, width, y, fill="#e0e0e0", tags="pixel_grid")
             self.grid_lines.append(line)
             
@@ -175,6 +241,10 @@ class PaintApp:
         x, y: 像素坐标（不是屏幕坐标）
         返回: RGB颜色元组
         """
+        # 检查边界
+        if x < 0 or y < 0 or x >= self.grid_width or y >= self.grid_height:
+            return (255, 255, 255)  # 超出边界返回白色
+            
         # 将像素坐标转换为屏幕坐标（像素网格的左上角坐标）
         screen_x = x * self.pixel_size
         screen_y = y * self.pixel_size
@@ -245,21 +315,13 @@ class PaintApp:
         获取整个像素网格的颜色数据
         返回: 二维列表，每个元素是RGB颜色元组
         """
-        # 获取画布的像素网格尺寸
-        canvas_width = self.canvas.winfo_width()
-        canvas_height = self.canvas.winfo_height()
-        
-        # 计算像素网格的尺寸
-        grid_width = canvas_width // self.pixel_size
-        grid_height = canvas_height // self.pixel_size
-        
         # 创建二维列表存储像素值
         pixels = []
         
         # 遍历每个像素点
-        for y in range(grid_height):
+        for y in range(self.grid_height):
             row = []
-            for x in range(grid_width):
+            for x in range(self.grid_width):
                 # 使用get_pixel方法获取每个像素的颜色
                 color = self.get_pixel(x, y)
                 row.append(color)
@@ -279,14 +341,14 @@ class PaintApp:
         r, g, b = color
         x, y = position
         
-        # 将RGB转换为十六进制颜色值
-        hex_color = f"#{r:02x}{g:02x}{b:02x}"
-        
         # 检查边界
-        if x >= 0 and y >= 0:
+        if x >= 0 and y >= 0 and x < self.grid_width and y < self.grid_height:
             # 计算屏幕坐标
             screen_x = x * self.pixel_size
             screen_y = y * self.pixel_size
+            
+            # 将RGB转换为十六进制颜色值
+            hex_color = f"#{r:02x}{g:02x}{b:02x}"
             
             # 在像素网格位置绘制方块
             self.canvas.create_rectangle(
@@ -297,5 +359,6 @@ class PaintApp:
 
 if __name__ == "__main__":
     root = Tk()
-    app = PaintApp(root)
+    # 可以在这里指定网格的宽高，例如 64x48
+    app = PaintApp(root, grid_width=28, grid_height=28)
     root.mainloop()
