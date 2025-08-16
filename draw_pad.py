@@ -53,7 +53,7 @@ class PaintApp:
         self.canvas.pack(fill=BOTH, expand=True)
         
         self.canvas.bind("<B1-Motion>", self.paint)
-        self.canvas.bind("<Button-1>", self.paint_dot)
+        self.canvas.bind("<Button-1>", self.paint)
         self.canvas.bind("<Configure>", self.on_canvas_resize)
         
     def paint(self, event):
@@ -89,10 +89,6 @@ class PaintApp:
         
         # 恢复原来的颜色
         self.pen_color = original_color
-        
-    def paint_dot(self, event):
-        # 单击事件直接调用paint方法
-        self.paint(event)
         
     def _is_within_bounds(self, x, y):
         """检查坐标是否在网格范围内"""
