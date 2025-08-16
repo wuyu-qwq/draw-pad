@@ -59,3 +59,7 @@ app = PaintApp(root)
 ### set_pixel((r,g,b), (x,y))
 
 设置画布上(x, y)点的像素颜色为(r, g, b)
+
+### set_canvas([[(r,g,b)]])
+
+设置画布为给定的二维数组，数组的元素为像素颜色
