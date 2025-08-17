@@ -129,7 +129,7 @@ class PaintApp:
         self.size_scale.pack(side=LEFT, padx=10)
         
         # 创建画布
-        self.canvas = Canvas(main_frame, bg="black")
+        self.canvas = Canvas(main_frame, bg="white")
         self.canvas.pack(fill=BOTH, expand=True)
         
         self.canvas.bind("<B1-Motion>", self.paint)
