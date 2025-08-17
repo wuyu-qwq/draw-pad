@@ -4,7 +4,6 @@ from tkinter import filedialog, messagebox
 import PIL.ImageGrab as ImageGrab
 import math
 
-
 # 处理颜色名称（如"white", "black"等）
 color_names = {
     'white': (255, 255, 255),
@@ -14,9 +13,6 @@ color_names = {
     'blue': (0, 0, 255),
     # 可以根据需要添加更多颜色名称
 }
-
-
-
 
 #最大元归一
 def toone(lst):
@@ -49,10 +45,6 @@ def toone(lst):
             lst[i][j] = k*lst[i][j]+k_0
 
     return lst
-    
-
-
-
 
 #二维高斯分布 n:点阵边长
 def normal_2d_wg(n):
@@ -65,11 +57,7 @@ def normal_2d_wg(n):
     ds = toone(ds)
     return ds
 
-
-
 def str_color_to_rgb(color):
-        
-        
         if color in color_names:
             return color_names[color]
 
@@ -95,7 +83,6 @@ def str_color_to_rgb(color):
 def rgb_to_str_color(r,g,b):
     return f"#{r:02x}{g:02x}{b:02x}"
 
-
 class PaintApp:
     # 常量定义
     PIXEL_TAG = "pixel"
@@ -107,8 +94,8 @@ class PaintApp:
         self.root.geometry("800x600")
         self.root.configure(background="white")
         # 默认画笔颜色和大小
-        self.pen_color = "white"
-        self.eraser_color = "black"
+        self.pen_color = "black"
+        self.eraser_color = "white"
         self.pen_size = 1  # 修改默认值为1，表示1个像素单位
         # 像素网格设置
         self.pixel_grid_enabled = True
@@ -149,7 +136,6 @@ class PaintApp:
         self.canvas.bind("<Button-1>", self.paint)
         self.canvas.bind("<Configure>", self.on_canvas_resize)
 
-        
     def paint(self, event):
         # 保存当前颜色
         original_color = self.pen_color
@@ -223,14 +209,12 @@ class PaintApp:
         g0 = g+_g
         b0 = b+_b
 
-        
         if r0 > 255:
             r0 = 255
         if g0 > 255:
             g0 = 255
         if b0 > 255:
             b0 = 255
-        
         
         """在指定位置绘制像素"""
         self.canvas.create_rectangle(
