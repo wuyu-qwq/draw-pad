@@ -2,6 +2,86 @@ from tkinter import *
 from tkinter.colorchooser import askcolor
 from tkinter import filedialog, messagebox
 import PIL.ImageGrab as ImageGrab
+import math
+
+# 处理颜色名称（如"white", "black"等）
+color_names = {
+    'white': (255, 255, 255),
+    'black': (0, 0, 0),
+    'red': (255, 0, 0),
+    'green': (0, 255, 0),
+    'blue': (0, 0, 255),
+    # 可以根据需要添加更多颜色名称
+}
+
+#最大元归一
+def toone(lst):
+    hig = len(lst)
+    wid = len(lst[0])
+
+    if hig*wid == 1:
+        return [[1]]
+
+    max = 0
+    #获取列表中的最大元
+    for i in range(hig):
+        for j in range(wid):
+            if lst[i][j]>max:
+                max = lst[i][j]
+    min = 0
+    min = max
+    #获取列表中的最小元
+    for i in range(hig):
+        for j in range(wid):
+            if lst[i][j]<min:
+                min = lst[i][j]
+
+    
+    k = (1-min)/(max-min)
+    k_0 = min*((max-1)/(max-min))
+    #y=kx+k_0
+    for i in range(hig):
+        for j in range(wid):
+            lst[i][j] = k*lst[i][j]+k_0
+
+    return lst
+
+#二维高斯分布 n:点阵边长
+def normal_2d_wg(n):
+    ds = []
+    for i in range(n):
+        ds.append([])
+        for j in range(n):
+            ds[i].append(math.exp(-(((n-1)/2-i)**2+(-(n-1)/2+j)**2)))
+
+    ds = toone(ds)
+    return ds
+
+def str_color_to_rgb(color):
+        if color in color_names:
+            return color_names[color]
+
+        hex_color = color
+        if hex_color.startswith('#'):
+            hex_color = hex_color[1:]
+        
+        if len(hex_color) == 3:
+            hex_color = ''.join([c*2 for c in hex_color])
+        
+        if len(hex_color) == 6:
+            try:
+                r = int(hex_color[0:2], 16)
+                g = int(hex_color[2:4], 16)
+                b = int(hex_color[4:6], 16)
+                return (r, g, b)
+            except ValueError:
+                pass
+
+        return (255, 255, 255)
+
+
+def rgb_to_str_color(r,g,b):
+    return f"#{r:02x}{g:02x}{b:02x}"
 
 class PaintApp:
     # 常量定义
@@ -18,7 +98,7 @@ class PaintApp:
         self.eraser_color = "white"
         self.pen_size = 1  # 修改默认值为1，表示1个像素单位
         # 像素网格设置
-        self.pixel_grid_enabled = False
+        self.pixel_grid_enabled = True
         self.grid_width = grid_width  # 固定网格宽度
         self.grid_height = grid_height  # 固定网格高度
         self.pixel_size = 10  # 每个像素方格的大小
@@ -55,7 +135,7 @@ class PaintApp:
         self.canvas.bind("<B1-Motion>", self.paint)
         self.canvas.bind("<Button-1>", self.paint)
         self.canvas.bind("<Configure>", self.on_canvas_resize)
-        
+
     def paint(self, event):
         # 保存当前颜色
         original_color = self.pen_color
@@ -69,7 +149,12 @@ class PaintApp:
         center_y = event.y // self.pixel_size
         
         # 根据笔墨粗细绘制多个像素
+        i = 0
+        j = 0
         radius = self.pen_size // 2
+        true_pen_color = normal_2d_wg(radius*2+1)
+        print(true_pen_color)
+        print(toone(true_pen_color))
         for dy in range(-radius, radius + 1):
             for dx in range(-radius, radius + 1):
                 x = center_x + dx
@@ -85,7 +170,11 @@ class PaintApp:
                     if self.is_eraser_mode:
                         self._erase_pixel_at(screen_x, screen_y)
                     else:
-                        self._draw_pixel(screen_x, screen_y, self.pen_color)
+                        #print(str_color_to_rgb(self.pen_color)[0]*true_pen_color[i][j])
+                        self._draw_pixel(screen_x, screen_y, rgb_to_str_color(round(str_color_to_rgb(self.pen_color)[0]*true_pen_color[i][j]),round(str_color_to_rgb(self.pen_color)[0]*true_pen_color[i][j]),round(str_color_to_rgb(self.pen_color)[0]*true_pen_color[i][j])),x,y)
+                j+=1
+            j=0
+            i+=1
         
         # 恢复原来的颜色
         self.pen_color = original_color
@@ -109,6 +198,29 @@ class PaintApp:
             screen_x, screen_y, 
             screen_x + self.pixel_size, screen_y + self.pixel_size,
             fill=color, outline=color, tags=self.PIXEL_TAG
+        )
+
+
+    def _draw_pixel(self, screen_x, screen_y, color,px,py):
+        (r,g,b) = str_color_to_rgb(color)
+        (_r,_g,_b) = self.get_pixel(px,py)
+
+        r0 = r+_r
+        g0 = g+_g
+        b0 = b+_b
+
+        if r0 > 255:
+            r0 = 255
+        if g0 > 255:
+            g0 = 255
+        if b0 > 255:
+            b0 = 255
+        
+        """在指定位置绘制像素"""
+        self.canvas.create_rectangle(
+            screen_x, screen_y, 
+            screen_x + self.pixel_size, screen_y + self.pixel_size,
+            fill=rgb_to_str_color(r0,g0,b0), outline=color, tags=self.PIXEL_TAG
         )
         
     def _get_current_drawing_color(self):
@@ -190,12 +302,12 @@ class PaintApp:
         
         # 绘制垂直线
         for x in range(0, width + 1, self.pixel_size):
-            line = self.canvas.create_line(x, 0, x, height, fill="#e0e0e0", tags=self.GRID_TAG)
+            line = self.canvas.create_line(x, 0, x, height, fill="#707070", tags=self.GRID_TAG)
             self.grid_lines.append(line)
             
         # 绘制水平线
         for y in range(0, height + 1, self.pixel_size):
-            line = self.canvas.create_line(0, y, width, y, fill="#e0e0e0", tags=self.GRID_TAG)
+            line = self.canvas.create_line(0, y, width, y, fill="#707070", tags=self.GRID_TAG)
             self.grid_lines.append(line)
             
         # 确保网格线在最底层，像素在最上层
@@ -248,15 +360,7 @@ class PaintApp:
         if not color:
             color = self.canvas.cget("bg")
         
-        # 处理颜色名称（如"white", "black"等）
-        color_names = {
-            'white': (255, 255, 255),
-            'black': (0, 0, 0),
-            'red': (255, 0, 0),
-            'green': (0, 255, 0),
-            'blue': (0, 0, 255),
-            # 可以根据需要添加更多颜色名称
-        }
+        
         
         if color in color_names:
             return color_names[color]
@@ -372,5 +476,6 @@ class PaintApp:
 if __name__ == "__main__":
     root = Tk()
     # 可以在这里指定网格的宽高，例如 64x48
-    app = PaintApp(root, grid_width=100, grid_height=100)
+    app = PaintApp(root, grid_width=64, grid_height=48)
+
     root.mainloop()
